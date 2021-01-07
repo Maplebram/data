@@ -1,0 +1,163 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+
+Deze notebook zal een voorbeeld geven hoe je kunt omgaan met de package Deliflor.opmerking.analyser.
+De eerste stap die wij doen is het inladen van de bestanden.
+Het inladen van sample_woordenboek is geen verplichting, deze wordt door de functies die een woordenboek nodig heeft automatisch ingeladen.
+
+```{r}
+sample_kloon_met_hun_opmerkingen <- Deliflor.opmerking.analyser::kloon_met_hun_opmerkingen
+sample_kloon_met_objectieve_waarden <- Deliflor.opmerking.analyser::kloon_met_objectieve_waarden
+sample_kloon_met_ouders <- Deliflor.opmerking.analyser::kloon_met_ouders
+sample.woordenboek <- Deliflor.opmerking.analyser::sample_woordenboek
+```
+
+
+Als eerste voor data manipulatie gaan wij de objectieve waarden veranderen. Als we eerst gaan we kijken naar een kloonnummer:
+
+```{r}
+head(sample_kloon_met_objectieve_waarden[sample_kloon_met_objectieve_waarden$Kloonnummer==29393,], 10)
+```
+
+Zie dat voor deze kloonnummer verschillende waarden zijn in de kolom "Reactietijd". Dit komt doordat deze in verschillende bloeiproeven op een andere dag in bloei stond.
+
+Om te zorgen dat wij een enkele waarden hebben van deze kloon gebruiken wij eerst de functie objectieve_waarden_gem. Deze functie heeft twee inputs nodig. De eerste is de data.frame sample_kloon_met_objectieve_waarden. De tweede is een getal. Dit getal staat voor de kolom die wij willen onderzoeken. In ons geval 2 voor de Reactietijd.
+
+```{r}
+objectief <- Deliflor.opmerking.analyser::objectieve_waarden_gem(sample_kloon_met_objectieve_waarden, 2)
+objectief[objectief$k.nummer==29393,]
+```
+
+Hierbij is de dataset voor de objectieve data klaar.
+We zullen nu onze focus leggen op de manipulatie van de opmerkingen.
+Hiervoor gebruiken wij de dataset sample_kloon_met_hun_opmerkingen met de focus op Opmerking.
+
+```{r}
+sample_kloon_met_hun_opmerkingen[1830:1836,]
+```
+
+Het kan voorkomen dat in de opmerking-data diakritische tekens voorkomen. Dit zijn onderandere de aanhalingstekens boven de letters. Hier weet R niet altijd even goed mee om te gaan. Daarvoor is de volgende functie gemaakt indien het nodig is deze te verwijderen. Ook hierbij geven we de kolom aan waar onze data staat.
+
+```{r}
+opmerking <- Deliflor.opmerking.analyser::diakritische_tekens_verwijderen(sample_kloon_met_objectieve_waarden, 2)
+```
+
+Vervolgens kunnen we gaan beginnen met het manipuleren van onze opmerking data. Momenteel is het nog een brij met allemaal woorden aan elkaar. Dit gaan we met de functie opmerking_split van elkaar los trekken. De functie doet dat door te zoeken naar de leestekens ','-komma, '.'-punt en '|'-sluisteken. Iedere keer als de functie deze tekens vindt maakt hij twee indivuele regels van. Ook hier moeten wij nog aangeven om welke kolom het gaat.
+
+```{r}
+opmerking_los <- Deliflor.opmerking.analyser::opmerking_split(sample_kloon_met_hun_opmerkingen, 2, "onbegrensd")
+head(opmerking_los)
+```
+
+Wat misschien opvalt is dat naast de sample data en het getal ook het woord 'onbegrensd' is meegenomen. Dit is omdat deze functie op twee manieren kan werken. De eerste is onbegrensd. Dit houdt in dat alleen het woord behouden blijft en de rest van de informatie wordt weg gegooid. Dit is puur voor het bekijken van de woorden die in de dataset voorkomen. De tweede is per_key. Met per_key onthoudt hij welk kloonnummer in relatie stond met de opmerking. Hiermee kun je minder accuraat de woorden bekijken, maar is juist bedoelt om het aantal woorden per k.nummer in kaart te brengen.
+
+```{r}
+opmerking_per_key <- Deliflor.opmerking.analyser::opmerking_split(sample_kloon_met_hun_opmerkingen, 2, "per_key")
+head(opmerking_per_key)
+```
+
+Dit effect wordt duidelijker zodra we de opmerkingen gaan optellen. Afhankelijk van de eerdere keuze zal ook de volgende functie op twee verschillende manieren werken.
+
+```{r}
+opmerking_los_tel <- Deliflor.opmerking.analyser::tel_aantal_per_woord(opmerking_los)
+opmerking_per_key_tel <- Deliflor.opmerking.analyser::tel_aantal_per_woord(opmerking_per_key)
+head(opmerking_los_tel)
+tail(opmerking_per_key_tel[opmerking_per_key_tel$k.nummer==29393,], 10)
+```
+
+Zoals te zien is zal de functie met de optie 'onbegrensd' alle woorden die hetzelfde zijn bij elkaar optellen. Het woord 'traag' komt in de gehele dataset 20167 keer voor. Als de optie 'per_key' was gekozen telt hij ook de woorden bij elkaar op, alleen zal dit gedaan worden binnen een kloonnummer, in ons geval staat het woord traag voor kloonnummer 29393 maar 2 keer voor.
+
+Zoals eerder was gesteld werkt de optie onbegrensd beter om de gebruikte woorden in kaart te brengen. Dit is te doen met de functies uitslag_zuiverheid_vs_woordenboek en uitslag_beste_ratio. Met de functie uitslag_zuiverheid_vs_woordenboek wordt er gekeken hoeveel van de opmerkingen in de dataset overeenkomen met het woordenboek.
+Indien geen woordenboek meegegeven wordt zal de default-woordenboek van de package gebruikt worden. Met top_woorden kun je zelf bepalen hoeveel van de woorden er bekeken kunnen worden.Met ratio is het mogelijk aan te geven hoeveel de woorden op elkaar moeten lijken. 
+
+Deze ratio is te bepalen met de functie uitslag_beste_ratio. Ook hier kunnen we weer een eigen woordenboek meegeven en bepalen hoeveel van de woorden we gaan bekijken.
+
+```{r}
+uitslag <- Deliflor.opmerking.analyser::uitslag_zuiverheid_vs_woordenboek(opmerking_los_tel, top_woorden = 500, ratio = 0.85 ,woordenboek = sample.woordenboek)
+tail(uitslag[[1]])
+uitslag[[2]]
+```
+
+uitslag_zuiverheid_vs_woordenboek geeft twee outputs. De eerste output is een data.frame. Hierin zal in kolom een de top_woorden te zien zijn, gevolgd door 'In WB 2', 'In WB 1', 'Boven ratio' of NA. 
+Als het woord gevolgd wordt door 'In WB 1' of 'In WB 2' betekent dit, dat het woord al in uw woordenboek staat en aangepast gaat worden. 
+Als het woord gevolgd wordt door 'Boven ratio' is het woord vergelijkbaar met een woord uit uw woordenboek en zal ook dez veranderd worden. 
+Als het woord gevolgd wordt door NA betekent dat het woord niet te vinden is en verwijderd zal worden. 
+
+De tweede output zal een data.frame zijn met drie kolommen. De eerste kolom met het woord dat gevonden is uit uw dataset die niet voorkomt in het woordenboek, de tweede kolom het woord dat wel in het woordenboek staat en waar deze op lijkt. En als laatste de derde kolom wat de ratio laat zien hoeveel deze woorden op elkaar lijken.
+Deze woorden zou je kunnen toevoegen aan het woordenboek voor een betere kwaliteit.
+
+Beide outputs worden gebaseerd op een ratio. Deze ratio is te bepalen met de functie uitslag_beste_ratio.
+Deze functie zal alle woorden die zijn meegegeven met elkaar vergelijken en bepalen hoeveel deze op elkaar lijken. Vervolgens controleert hij beide woorden met het woordenboek. Als beide woorden in het woordenboek gelijk zijn zal hij deze ook als gelijkwaardig zien. Dit zal een output geven.
+```{r}
+Deliflor.opmerking.analyser::uitslag_beste_ratio(opmerking_los_tel, top_woorden = 500, woordenboek = sample.woordenboek)
+```
+
+Ik adviseer een combinatie te zoeken met een zo klein mogelijk false_pos en totaal_fal.
+
+Deze ratio wordt ook gebruikt in de functie zuiver_maken_met_woordenboek. Deze functie vergelijkt alle woorden in de dataset met alle woorden in het woordenboek en gebruik daarmee veel rekenkracht. Hiervoor is er mogelijkheid gemaakt om aan te geven hoeveel processoren er gebruikt mogen worden. De functie zal alle opmerkingen gelijk maken aan de tweede kolom van het woordenboek. Woorden die te veel verschillen met het woordenboek zullen niet worden meegenomen in de output. Het is mogelijk  zowel de onbegrensd als per_key opties te gebruiken.
+
+```{r}
+opmerking_los_tel_zuiver <- Deliflor.opmerking.analyser::zuiver_maken_met_woordenboek(opmerking_los_tel, ratio = 0.85, ncores = 2, woordenboek = sample.woordenboek)
+opmerking_per_key_tel_zuiver <- Deliflor.opmerking.analyser::zuiver_maken_met_woordenboek(opmerking_per_key_tel, ratio = 0.85, ncores = 2, woordenboek = sample.woordenboek)
+```
+
+Na het zuiveren van de data waarbij de optie onbegrend was gebruikt (opmerking_los_tel_zuiver) kan je nogmaals de functies uitslag_zuiverheid_vs_woordenboek en uitslag_beste_ratio uit voeren.
+Dit is tevens de laatste functie die je hier op kan uitvoeren.
+
+Met de per_key optie worden de functies hier beneden uitgevoerd. 
+Zo zal de functie samenvoegen_opmerking_objectief, de output opmerking_per_key_tel_zuiver samenvoegen met de eerder gemaakte output objectief.
+In beide outputs komen k.nummers voor en zullen worden gekoppeld.
+
+```{r}
+kloon_opm_obj <- Deliflor.opmerking.analyser::samenvoegen_opmerking_objectief(opmerking_per_key_tel_zuiver, objectief)
+```
+
+Om echt goed te kunnen kijken naar de data doen we nog een laatste filter. Deze is om onderscheid te maken tussen woorden als groepen. De functie zoekt alle woorden met de bijbehorende gegevens. Tevens voegt deze functie een nieuw woord toe, namelijk het woord 'geen'. Deze presenteerd de k.nummers die geen van de ingevoerde woorden heeft. 
+
+Als voorbeeld kijken we naar de woorden (traag en snel) in combinatie met een k.nummer met de woorden 'groenhart', 'leuk' en 'mooi', maar zonder de woorden 'traag' en/of 'snel' dan zal deze het woord 'geen' krijgen. 
+
+```{r}
+uitslag_data1 <- Deliflor.opmerking.analyser::keuze_woorden_voor_analyse(kloon_opm_obj, c("traag", "snel"))
+```
+
+Nu is de data correct om uitslagen te geven.
+De functie Uitslag_verschillende_woorden geeft het aantal k.nummers en de gemiddelde objectieve waarden per woord weer. Ook zet hij de gemiddelden uit in een grafiek en doet een correlatie toets.
+
+De functie Uitslag_per_los_woord heeft als input een enkel woord nodig naast de dataset. De functie zet twee grafieken uit. De eerst zal de spreiding van de objectieve data zijn, uitgezet tegen het aantal keer voorkomen van het woord. Als tweede een box-diagram met een trendlijn die alleen gebaseerd is op het aantal keer voorkomen van het woord. 
+
+Als laatste voert de functie uitslag_regressie een linear regression toets uit waarbij een relatie wordt getrokken tussen de woorden en het aantal keer dat deze woorden voorkwamen.
+
+```{r}
+Deliflor.opmerking.analyser::Uitslag_verschillende_woorden(uitslag_data1)
+Deliflor.opmerking.analyser::Uitslag_per_los_woord(uitslag_data1, woord = "traag")
+Deliflor.opmerking.analyser::uitslag_regressie(uitslag_data1)
+```
+
+Voor de laatste uitslag is het nodig om de ouders van het kloonnummer te hebben. We passen de data van de sample_kloon_met_ouders hiervoor aan.
+We gebruiken de kolommen kloonnummer, kloon.pa en kloon.Ma en zorgen ervoor dat de kolom kloonnummer veranderd naar de naam k.nummer.
+Hierna koppelen we de dataset met de output kloon_opm_obj die uit de functie samenvoegen_opmerking_objectief kwam. Hierna kiezen we opnieuw de woorden traag en snel in de functie keuze_woorden_voor_analyse.
+
+```{r}
+sample_kloon_met_ouders <- sample_kloon_met_ouders[,c(1,4,5)]
+names(sample_kloon_met_ouders) <- c("k.nummer", "Kloon.Pa", "Kloon.Ma")
+kloon_opm_obj_ouder <- Deliflor.opmerking.analyser::samenvoegen_onderzoeksdata_ouders(kloon_opm_obj, sample_kloon_met_ouders)
+uitslag_data2 <- Deliflor.opmerking.analyser::keuze_woorden_voor_analyse(kloon_opm_obj_ouder, c("traag", "snel"))
+```
+
+Met deze output is het mogelijk om de laatste functie genaamt uitslag_overerving te gebruiken. Het blijft echter ook mogelijk om de uitslag functies Uitslag_verschillende_woorden, Uitslag_per_los_woord en uitslag_regressie uit te voeren.
+
+De functie uitslag_overerving geeft een list met verschillende outputs.
+Als eerste een linear regression toets waarbij een voorspelling gedaan wordt over de objectieve waarden van het k.nummer met de woorden van de ouders en hun objectieve waarden.
+Als tweede een tabel waarbij het gemiddelde als ook de standaardafwijking van de objectieve waarden van de kloonnummers per unieke woorden-combinatie te zien zijn van beide ouders.
+Als laatste worden de gemiddelde en standaardafwijking uitgezet in een plot.
+
+```{r}
+Deliflor.opmerking.analyser::uitslag_overerving(uitslag_data2)
+```
